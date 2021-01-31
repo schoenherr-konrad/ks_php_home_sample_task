@@ -77,7 +77,7 @@ class GroupedArticle
 				$this->$col_list=array($art->$col);
 			}
 		}
-                $this->price += $price;
+                $this->price += $art->price;
 	}
 
 	public function getNamelist() {
