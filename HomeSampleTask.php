@@ -48,22 +48,35 @@ class Article
 
 }
 
+//Class that allows aggregate "name" or "group"
 class GroupedArticle
 {
         private array $namelist;
-        private int $group;
+        private array $grouplist;
         private float $price;
 
-        public function __construct(array $namelist, int $group, float $price) {
-                $this->namelist = $namelist;
-                $this->group    = $group;
-                $this->price    = $price;
+        public function __construct(array $namelist, array $grouplist, float $price) {
+                $this->namelist     = $namelist;
+                $this->grouplist    = $grouplist;
+                $this->price        = $price;
         }
-	
-	public function addNamePrice(string $name,float $price) {
-        	if(!in_array($name,$this->namelist)) {
-               		array_push($this->namelist,$name);
-                };
+
+	public function inList(string $col, $needle) {
+		$col_list=$col."list";
+		return in_array($needle,$this->$col_list);
+	}
+
+	public function addArticle(Article $art, $aggregate_col="name") {
+		foreach(["name","group"] as $col) {
+			$col_list=$col."list";
+			if ($aggregate_col==$col) {
+        			if(!in_array($art->$col,$this->$col_list)) {
+               				array_push($this->$col_list,$art->$col);
+                		}
+			} else {
+				$this->$col_list=array($art->$col);
+			}
+		}
                 $this->price += $price;
 	}
 
@@ -71,22 +84,24 @@ class GroupedArticle
 		return implode(",",$this->namelist);
 	}
 	
-	public function getGroup() {
-		return $this->group;
+	public function getGrouplist() {
+		return implode(",",$this->grouplist);
 	}
 
         public function getPrice() {
-                return $this->price;
+		return $this->pricelist;  
         }
 
+	//formatted Output for money - standard is Euro
         public function getPriceFormatted(string $format="%0.2f €") {
                 return sprintf($format,$this->price);
         }
 }
 
+//Comparision Callbacks used by usort
 
 function cmp_std($a,$b) {
-	return $a->getGroup() <=> $b->getGroup();
+	return $a->getGrouplist() <=> $b->getGrouplist();
 };
 function cmp_name($a,$b) {
         return strnatcmp($a->getNamelist(),$b->getNamelist());
@@ -98,44 +113,28 @@ function cmp_price_desc($a,$b) {
         return $b->getPrice() <=> $a->getPrice();
 };
 
-// user-defined business role example acording to task 2.2
-function cmp_name_price_asc($a,$b) { 
-	if (strnatcmp($a->getNamelist(),$b->getNamelist())==0) {
-        	return $a->getPrice() <=> $b->getPrice();
-	} else {
-		return strnatcmp($a->getNamelist(),$b->getNamelist());
-	}
-};
-
 class ArticleList
 {
 	private array $articles;
-	private array $grouped_articles;
         
 	public function __construct(array $articles) {
                 $this->articles=$articles;
-		$this->grouped_articles=array();
+	}
+
+
+	public function query(string $cmp_func="cmp_std",string $groupby_col="group", string $aggregate_col="name",string $not_aggregate_if_col = "group",$not_aggregate_value=0) {
+		$output_array=array();
 		foreach($this->articles as $article) {
-			$this->add_grouped_article($article->name,$article->group,$article->price);
-		}
-	}
-
-	private function add_grouped_article(string $name, int $group, float $price) {
-		if($group!=0) {
-			foreach($this->grouped_articles as &$grouped_article) { 
-				if($grouped_article->getGroup()==$group) {
-					$grouped_article->addNamePrice($name,$price);
-					return;
-				}
-			};
-		}
-		//nothing found or group 0(ungrouped), add new
-		$this->grouped_articles[]=new GroupedArticle(array($name),$group,$price);
-	}
-
-
-	public function sort(string $cmp_func="cmp_std") {
-		$output_array=$this->grouped_articles;
+			if($article->$not_aggregate_if_col!=$not_aggregate_value) { //implementation of "NOT AGGREGATE" if column value a specific value
+                        	foreach($output_array as &$grouped_article) {
+                                	if($grouped_article->inList($groupby_col,$article->$groupby_col)) {
+						$grouped_article->addArticle($article,$aggregate_col);
+                                        	continue 2; //continue 2nd foreach loop
+                                	}
+                        	}
+			};	
+			$output_array[]=new GroupedArticle(array($article->name),array($article->group),$article->price);				
+                }
 		usort($output_array,$cmp_func);
 		return $output_array;
 	}
@@ -155,12 +154,12 @@ $articles = new ArticleList(array(
 ));
 
 //task result generation
-$results["Task 1"]=array("articles"=>$articles->sort());
-$results["Task 2.1 sorted by name"]=array("articles"=>$articles->sort("cmp_name"));
-$results["Task 2.1 sorted by price asc"]=array("articles"=>$articles->sort("cmp_price_asc"));
-$results["Task 2.1 sorted by price desc"]=array("articles"=>$articles->sort("cmp_price_desc"));
-$results["Task 2.2 sorted by name then price asc"]=array("articles"=>$articles->sort("cmp_name_price_asc"));
-$results["Task 2.3 USD instead"]=array("articles"=>$articles->sort(),"money_format"=>'$ %0.2f'); // option money_format for other money format (Task 2.3)
+$results["Task 1"]=array("articles"=>$articles->query());
+$results["Task 2.1 sorted by name"]=array("articles"=>$articles->query("cmp_name"));
+$results["Task 2.1 sorted by price asc"]=array("articles"=>$articles->query("cmp_price_asc"));
+$results["Task 2.1 sorted by price desc"]=array("articles"=>$articles->query("cmp_price_desc"));
+$results["Task 2.2 user defined grouped by name"]=array("articles"=>$articles->query("cmp_name","name","group")); // Example für a user defined "group by" more flexibility would we have using an ORM like Doctrine 
+$results["Task 2.3 USD instead"]=array("articles"=>$articles->query(),"money_format"=>'$ %0.2f'); // option money_format for other money format (Task 2.3)
 ?>
 <header>
 <!-- add Bootstrap CSS for better table layout -->
@@ -180,7 +179,7 @@ $results["Task 2.3 USD instead"]=array("articles"=>$articles->sort(),"money_form
   <tbody>
 <?php foreach ($result["articles"] as $row) { ?>
     <tr>
-      <td><?php echo $row->getNamelist() ?></td><td><?php echo $row->getGroup() ?></td><td><?php echo isset($result["money_format"])?$row->getPriceFormatted($result["money_format"]):$row->getPriceFormatted(); ?></td>
+      <td><?php echo $row->getNamelist() ?></td><td><?php echo $row->getGrouplist() ?></td><td><?php echo isset($result["money_format"])?$row->getPriceFormatted($result["money_format"]):$row->getPriceFormatted(); ?></td>
     </tr>
 <?php } ?>
   </tbody>
