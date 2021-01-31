@@ -89,7 +89,7 @@ class GroupedArticle
 	}
 
         public function getPrice() {
-		return $this->pricelist;  
+		return $this->price;  
         }
 
 	//formatted Output for money - standard is Euro
@@ -159,7 +159,7 @@ $results["Task 2.1 sorted by name"]=array("articles"=>$articles->query("cmp_name
 $results["Task 2.1 sorted by price asc"]=array("articles"=>$articles->query("cmp_price_asc"));
 $results["Task 2.1 sorted by price desc"]=array("articles"=>$articles->query("cmp_price_desc"));
 $results["Task 2.2 user defined grouped by name"]=array("articles"=>$articles->query("cmp_name","name","group")); // Example für a user defined "group by" more flexibility would we have using an ORM like Doctrine 
-$results["Task 2.3 USD instead"]=array("articles"=>$articles->query(),"money_format"=>'$ %0.2f'); // option money_format for other money format (Task 2.3)
+$results["Task 2.3 USD price format instead"]=array("articles"=>$articles->query(),"money_format"=>'$ %0.2f'); // option money_format for other money format (Task 2.3)
 ?>
 <header>
 <!-- add Bootstrap CSS for better table layout -->
